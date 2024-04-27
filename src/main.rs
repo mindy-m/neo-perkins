@@ -10,6 +10,8 @@ use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
 use midir::{MidiInput, MidiInputConnection};
 
+mod brailley;
+
 #[derive(Clone, Debug, ValueEnum)]
 enum OutputMode {
     Dots,
@@ -18,6 +20,7 @@ enum OutputMode {
 }
 
 impl Default for OutputMode {
+    // same as: fn default() -> OutputMode, because we are OutputMode!
     fn default() -> Self {
         OutputMode::Both
     }
@@ -28,7 +31,8 @@ impl Default for OutputMode {
 struct Invocation {
     // -s (short)
     // --show (long)
-    #[clap(short, long)]
+    // default_value = the default value :O
+    #[clap(short, long, default_value = "both")]
     show: OutputMode,
 }
 
@@ -52,10 +56,17 @@ enum BrailleKey {
 }
 
 impl Debug for BrailleKey {
-    fn fmt(&self, place_where_formatted_output_goes: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(
+        &self, // like: self: &BrailleKey
+        place_where_formatted_output_goes: &mut Formatter<'_>,
+    ) -> fmt::Result {
         match self {
-            BrailleKey::Enter => write!(place_where_formatted_output_goes, "Enter"),
-            BrailleKey::Space => write!(place_where_formatted_output_goes, "Space"),
+            BrailleKey::Enter => {
+                write!(place_where_formatted_output_goes, "Enter")
+            }
+            BrailleKey::Space => {
+                write!(place_where_formatted_output_goes, "Space")
+            }
             BrailleKey::Dot(n) => write!(
                 place_where_formatted_output_goes,
                 "Dot({})={}=|{}|",
@@ -70,6 +81,8 @@ impl Debug for BrailleKey {
 }
 
 impl BrailleKey {
+    // could also write:
+    // fn from_midi_note(note: u8) -> Option<Self>
     fn from_midi_note(note: u8) -> Option<BrailleKey> {
         match note {
             48 => Some(BrailleKey::Dot(2)),
@@ -94,7 +107,11 @@ impl BrailleKey {
 }
 
 // fn .........(a: u64, b: &[u8], c: &mut T)
-fn our_callback(_timestamp: u64, data: &[u8], tx: &mut mpsc::Sender<MidiEvent>) {
+fn our_callback(
+    _timestamp: u64,
+    data: &[u8],
+    tx: &mut mpsc::Sender<MidiEvent>,
+) {
     // The first byte of a MIDI command has four bits of Command and four bits
     // of cHannel:
     //
@@ -159,7 +176,7 @@ fn revive_mr_perkins() -> anyhow::Result<
         return Ok((the_connection, rx));
     }
     return Err(anyhow!(
-        "We didn't find any ports. DID YOU PRESS THE PIANO KEY?!??"
+        "We didn't find any ports. DID YOU PRESS THE PIANO KEY?!?? IF THIS IS THE FIRST TIME YOU'VE USED THE PIANO IN A WHILE DID YOU USE THE TASKBAR THING TO MAKE THE PIANO MODE TURN ON FOR THE FIRST TIME IN A WHILE???????????????"
     ));
 }
 
@@ -212,7 +229,8 @@ fn main() {
                         print!(
                             // U+0008 = backspace!
                             "{}\x08",
-                            char::from_u32(0x2800 + dots_present as u32).unwrap()
+                            char::from_u32(0x2800 + dots_present as u32)
+                                .unwrap()
                         );
                         let _ = std::io::stdout().flush();
                     }
@@ -253,7 +271,11 @@ fn main() {
                         // dot not be held)
                         dots_held &= !(1 << dot);
                         if dots_held == 0 {
-                            print!("{}", char::from_u32(0x2800 + dots_present as u32).unwrap());
+                            print!(
+                                "{}",
+                                char::from_u32(0x2800 + dots_present as u32)
+                                    .unwrap()
+                            );
                             dots_present = 0;
                             let _ = std::io::stdout().flush();
                         }
