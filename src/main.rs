@@ -11,6 +11,9 @@ use clap::{Parser, ValueEnum};
 use midir::{MidiInput, MidiInputConnection};
 
 mod brailley;
+use brailley::*; // "*" = "everything that's public, we want"
+                 // good for our own modules
+                 // bad for outside things
 
 #[derive(Clone, Debug, ValueEnum)]
 enum OutputMode {
@@ -207,10 +210,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    // Dots that are present in this cell of the brailler
-    let mut dots_present = 0;
-    // Dot keys that are *currently being held down*
-    let mut dots_held = 0;
+    let mut brailley = Brailley::new();
     // next time: talk about what the heck this syntax is
     while let Ok(message) = mr_perkins.recv() {
         match message {
@@ -224,8 +224,9 @@ fn main() {
                 match key {
                     BrailleKey::Dot(dot) => {
                         // Make the dot present and held
-                        dots_present |= (1 << dot);
-                        dots_held |= (1 << dot);
+                        brailley.press_dot(dot);
+                        /*
+                        // TODO: make the live preview thing still happen :(
                         print!(
                             // U+0008 = backspace!
                             "{}\x08",
@@ -233,22 +234,23 @@ fn main() {
                                 .unwrap()
                         );
                         let _ = std::io::stdout().flush();
+                        */
                     }
                     BrailleKey::Space => {
                         // If any dots are held, beep.  Otherwise, space.
-                        if dots_held != 0 {
-                            print!("\x07"); // ASCII BEL[L]
-                        } else {
-                            print!(" ");
+                        let bell_or_space = brailley.press_space();
+                        match bell_or_space {
+                            Err(_) => print!("\x07"), // ASCII BEL[L]!
+                            Ok(_) => print!(" "),
                         }
                         let _ = std::io::stdout().flush();
                     }
                     BrailleKey::Enter => {
                         // If any dots are held, beep.  Otherwise, enter.
-                        if dots_held != 0 {
-                            print!("\x07"); // ASCII BEL[L]  btw it is an L not a 1 or an I
-                        } else {
-                            print!("\n");
+                        let bell_or_enter = brailley.press_enter();
+                        match bell_or_enter {
+                            Err(_) => print!("\x07"), // ASCII BEL[L]!
+                            Ok(_) => print!("\n"),
                         }
                         // The time of out is Now.
                         let _ = std::io::stdout().flush();
@@ -262,6 +264,14 @@ fn main() {
                 };
                 match key {
                     BrailleKey::Dot(dot) => {
+                        let full_life_consequences = brailley.release_dot(dot);
+                        if let Some((braille_char, latin_char)) =
+                            full_life_consequences
+                        {
+                            print!("{latin_char}");
+                            let _ = std::io::stdout().flush();
+                        }
+                        /*
                         //      1
                         // ( << dot, shift left by dot, which is currently 2)
                         //    100
@@ -279,6 +289,7 @@ fn main() {
                             dots_present = 0;
                             let _ = std::io::stdout().flush();
                         }
+                        */
                     }
                     _ => {} // but also maybe consider doing something (later!)
                 }
