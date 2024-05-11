@@ -268,7 +268,7 @@ fn main() {
                         if let Some((braille_char, latin_char)) =
                             full_life_consequences
                         {
-                            print!("{latin_char}");
+                            print!("{braille_char}");
                             let _ = std::io::stdout().flush();
                         }
                         /*
